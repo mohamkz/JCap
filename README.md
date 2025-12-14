@@ -7,7 +7,6 @@ A lightweight, real-time network packet sniffer built with **Java**, **JavaFX**,
 * **Protocol Analysis:** Color-coded support for TCP, UDP, ICMP, and ARP.
 * **Deep Inspection:** View raw Hex and ASCII payload dumps.
 * **Filtering:** Standard BPF syntax (e.g., `tcp port 80`).
-* **Logging:** Auto-rotating logs for debugging.
 
 ## Requirements
 1.  **Java 17+** & **Maven**.
