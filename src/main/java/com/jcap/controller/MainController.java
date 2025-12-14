@@ -79,7 +79,7 @@ public class MainController {
             }
         }
         catch (PcapNativeException e) {
-            logger.error("Failed to load network interfaces. Is Npcap/Libpcap installed?", e);
+            logger.error("Failed to load network interfaces. {}", e.getMessage());
         }
 
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {

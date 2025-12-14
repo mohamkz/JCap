@@ -23,16 +23,8 @@ mvn clean install
 
 ### 2\. Run
 
-**Option 1: Maven**
-
 ```bash
 mvn javafx:run
-```
-
-**Option 2: Jar**
-
-```bash
-java -jar target/JCap-1.0-SNAPSHOT.jar
 ```
 
 > **⚠️ IMPORTANT:** Capturing packets requires **Admin Privileges**.

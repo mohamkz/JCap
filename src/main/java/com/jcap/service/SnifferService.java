@@ -45,27 +45,50 @@ public class SnifferService extends Service<Void> {
 
                 try {
                     handle = nif.openLive(snapLen, PromiscuousMode.PROMISCUOUS, readTimeout);
+                }
+                catch (PcapNativeException e) {
+                    logger.error("Failed to open device {}. {}", nif.getName(), e.getMessage());
 
-                    if (filter != null && !filter.isEmpty()) {
+                    Platform.runLater(() -> onError.accept("Error opening device: Access Denied."));
+                    return null;
+                }
+
+                if (filter != null && !filter.isEmpty()) {
+                    try {
                         handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
                         logger.info("Filter applied: {}", filter);
                     }
-                }
-                catch (PcapNativeException | NullPointerException | NotOpenException e) {
-                    logger.error("Invalid Filter or Capture Error: {}", e.getMessage());
+                    catch (PcapNativeException | NullPointerException | NotOpenException e) {
+                        logger.error("Invalid Filter Syntax: {}.", filter);
 
-                    // Show the alert box to the user
-                    Platform.runLater(() -> onError.accept("Invalid Filter Syntax: " + filter));
+                        Platform.runLater(() -> onError.accept("Invalid Filter Syntax: " + filter));
 
-                    if (handle != null && handle.isOpen()) {
-                        handle.close();
+                        if (handle != null && handle.isOpen()) {
+                            handle.close();
+                        }
+                        return null;
                     }
-                    return null; // Stop the service
                 }
 
+                PacketListener listener = getPacketListener();
+
+                try {
+                    logger.info("Starting packet capture loop on {}", nif.getName());
+                    handle.loop(-1, listener);
+                } catch (InterruptedException e) {
+                    logger.info("Capture loop interrupted (Stop requested).");
+                }
+                catch (PcapNativeException | NotOpenException e) {
+                    logger.error("Critical error during packet capture loop.", e);
+                    Platform.runLater(() -> onError.accept("Capture Error: " + e.getMessage()));
+                }
+                return null;
+            }
+
+            private PacketListener getPacketListener() {
                 AtomicInteger packetCounter = new AtomicInteger(1);
 
-                PacketListener listener = packet -> {
+                return packet -> {
                     long currentMicros = System.currentTimeMillis() * 1000;
 
                     if (startTime == 0) startTime = currentMicros;
@@ -111,21 +134,9 @@ public class SnifferService extends Service<Void> {
                                 packet.length(),
                                 packet.getRawData()
                         );
-                        javafx.application.Platform.runLater(() -> onPacketCaptured.accept(model));
+                        Platform.runLater(() -> onPacketCaptured.accept(model));
                     }
                 };
-
-                try {
-                    logger.info("Starting packet capture loop on {}", nif.getName());
-                    handle.loop(-1, listener);
-                } catch (InterruptedException e) {
-                    logger.info("Capture loop interrupted (Stop requested).");
-                }
-                catch (PcapNativeException | NotOpenException e) {
-                    logger.error("Critical error during packet capture loop", e);
-                    Platform.runLater(() -> onError.accept("Capture Error: " + e.getMessage()));
-                }
-                return null;
             }
         };
     }
@@ -138,7 +149,7 @@ public class SnifferService extends Service<Void> {
                 handle.close();
                 logger.info("Pcap handle closed successfully.");
             } catch (NotOpenException e) {
-                logger.error("Failed to close Pcap handle", e);
+                logger.error("Failed to close Pcap handle. {}", e.getMessage());
             }
         }
         return super.cancel();
