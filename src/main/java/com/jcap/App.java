@@ -1,6 +1,7 @@
 package com.jcap;
 
 import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -12,7 +13,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("view/main-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 1000, 700);

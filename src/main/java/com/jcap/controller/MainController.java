@@ -128,7 +128,7 @@ public class MainController {
 
     private void styleRow(TableRow<PacketModel> row) {
         if (row.isSelected()) {
-            row.setStyle("-fx-background-color: #2C3E50; -fx-text-fill: white;");
+            row.setStyle("-fx-background-color: #8CA9FF; -fx-text-fill: white;");
             return;
         }
 
@@ -141,22 +141,22 @@ public class MainController {
         String style = "-fx-text-fill: black; -fx-background-color: ";
 
         if (proto.contains("TCP")) {
-            row.setStyle(style + "rgba(50, 205, 50, 0.15);");
+            row.setStyle(style + "rgba(50, 205, 50, 0.25);");
         }
         else if (proto.contains("UDP")) {
-            row.setStyle(style + "rgba(30, 144, 255, 0.15);");
+            row.setStyle(style + "rgba(30, 144, 255, 0.25);");
         }
         else if (proto.contains("ARP")) {
-            row.setStyle(style + "rgba(255, 165, 0, 0.15);");
+            row.setStyle(style + "rgba(255, 165, 0, 0.25);");
         }
         else if (proto.contains("ICMP")) {
-            row.setStyle(style + "rgba(255, 105, 180, 0.15);");
+            row.setStyle(style + "rgba(255, 105, 180, 0.25)");
         }
         else if (proto.contains("IGMP")) {
-            row.setStyle(style + "rgba(200, 100, 200, 0.15);");
+            row.setStyle(style + "rgba(200, 100, 200, 0.25);");
         }
         else {
-            row.setStyle(style + "rgba(128, 128, 128, 0.15);");
+            row.setStyle(style + "rgba(128, 128, 128, 0.25);");
         }
     }
 
