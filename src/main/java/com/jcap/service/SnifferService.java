@@ -6,14 +6,15 @@ import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import org.pcap4j.core.*;
 import org.pcap4j.core.PcapNetworkInterface.PromiscuousMode;
-import org.pcap4j.packet.ArpPacket;
-import org.pcap4j.packet.EthernetPacket;
-import org.pcap4j.packet.IpV4Packet;
-import org.pcap4j.packet.IpV6Packet;
+import org.pcap4j.packet.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import org.pcap4j.packet.namednumber.ArpOperation;
+import org.pcap4j.packet.namednumber.IcmpV4Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ public class SnifferService extends Service<Void> {
     private final Consumer<PacketModel> onPacketCaptured;
     private final Consumer<String> onError;
     private final String filter;
-    private long startTime = 0;
+    private long startNano = 0;
 
     public SnifferService(PcapNetworkInterface nif, String filter, Consumer<PacketModel> callback, Consumer<String> onError) {
         this.nif = nif;
@@ -89,11 +90,13 @@ public class SnifferService extends Service<Void> {
                 AtomicInteger packetCounter = new AtomicInteger(1);
 
                 return packet -> {
-                    long currentMicros = System.currentTimeMillis() * 1000;
+                    long currentNano = System.nanoTime();
 
-                    if (startTime == 0) startTime = currentMicros;
+                    if (startNano == 0) {
+                        startNano = currentNano;
+                    }
 
-                    double relativeTime = (currentMicros - startTime) / 1_000_000.0;
+                    double relativeTime = (currentNano - startNano) / 1_000_000_000.0;
 
                     String src = "Unknown";
                     String dst = "Unknown";
@@ -124,6 +127,8 @@ public class SnifferService extends Service<Void> {
                         proto = "ETHERNET";
                     }
 
+                    String infoStr = getInfoString(packet);
+
                     if (!proto.equals("Unknown")) {
                         PacketModel model = new PacketModel(
                                 packetCounter.getAndIncrement(),
@@ -132,6 +137,7 @@ public class SnifferService extends Service<Void> {
                                 dst,
                                 proto,
                                 packet.length(),
+                                infoStr,
                                 packet.getRawData()
                         );
                         Platform.runLater(() -> onPacketCaptured.accept(model));
@@ -139,6 +145,77 @@ public class SnifferService extends Service<Void> {
                 };
             }
         };
+    }
+
+    public String getInfoString(Packet packet) {
+        StringBuilder info = new StringBuilder();
+
+        if (packet.contains(TcpPacket.class)) {
+            TcpPacket tcp = packet.get(TcpPacket.class);
+            List<String> flags = new ArrayList<>();
+
+            if (tcp.getHeader().getSyn()) flags.add("SYN");
+            if (tcp.getHeader().getAck()) flags.add("ACK");
+            if (tcp.getHeader().getRst()) flags.add("RST");
+            if (tcp.getHeader().getFin()) flags.add("FIN");
+            if (tcp.getHeader().getPsh()) flags.add("PSH");
+            if (tcp.getHeader().getUrg()) flags.add("URG");
+
+
+            info.append(tcp.getHeader().getSrcPort().valueAsInt()).append(" → ").append(tcp.getHeader().getDstPort().valueAsInt());
+
+            info.append("  [").append(String.join(", ", flags)).append("]");
+
+            info.append("  Seq=").append(tcp.getHeader().getSequenceNumberAsLong());
+            info.append("  Ack=").append(tcp.getHeader().getAcknowledgmentNumberAsLong());
+            info.append("  Win=").append(tcp.getHeader().getWindowAsInt());
+
+            if (tcp.getPayload() != null && (tcp.getHeader().getDstPort().valueAsInt() == 80)) {
+                String payloadStr = new String(tcp.getPayload().getRawData());
+                int firstLineEnd = payloadStr.indexOf("\r\n");
+                if (firstLineEnd > 0) {
+                    payloadStr = payloadStr.substring(0, firstLineEnd);
+                    info.append("  [HTTP:").append(payloadStr).append("]");
+                }
+            }
+        }
+        else if (packet.contains(UdpPacket.class)) {
+            UdpPacket udp = packet.get(UdpPacket.class);
+            info.append("Len=").append(udp.getHeader().getLength());
+
+            if (udp.getHeader().getSrcPort().valueAsInt() == 53 || udp.getHeader().getDstPort().valueAsInt() == 53) {
+                info.append("  (DNS Query/Response)");
+            }
+        }
+        else if (packet.contains(ArpPacket.class)) {
+            ArpPacket arp = packet.get(ArpPacket.class);
+            ArpOperation op = arp.getHeader().getOperation();
+
+            if (op.equals(ArpOperation.REQUEST)) {
+                info.append("Who has ").append(arp.getHeader().getDstProtocolAddr().getHostAddress())
+                        .append("? Tell ").append(arp.getHeader().getSrcProtocolAddr().getHostAddress());
+            }
+            else if (op.equals(ArpOperation.REPLY)) {
+                info.append(arp.getHeader().getSrcProtocolAddr().getHostAddress()).append(" is at ")
+                        .append(arp.getHeader().getSrcHardwareAddr());
+            }
+            else {
+                info.append(op.name());
+            }
+        }
+        else if (packet.contains(IcmpV4CommonPacket.class)) {
+            IcmpV4CommonPacket icmp = packet.get(IcmpV4CommonPacket.class);
+
+            if (icmp.getHeader().getType().equals(IcmpV4Type.ECHO)) {
+                info.append("Echo (Ping) Request");
+            } else if (icmp.getHeader().getType().equals(IcmpV4Type.ECHO_REPLY)) {
+                info.append("Echo (Ping) Reply");
+            } else {
+                info.append(icmp.getHeader().getType().name());
+            }
+        }
+
+        return info.toString();
     }
 
     @Override

@@ -1,29 +1,36 @@
 package com.jcap.model;
 
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+
 public class PacketModel {
-    private final Integer number;
-    private final String timestamp;
-    private final String source;
-    private final String destination;
-    private final String protocol;
-    private final Integer length;
+    private final SimpleIntegerProperty number;
+    private final SimpleStringProperty timestamp;
+    private final SimpleStringProperty source;
+    private final SimpleStringProperty destination;
+    private final SimpleStringProperty protocol;
+    private final SimpleIntegerProperty length;
+    private final SimpleStringProperty info;
     private final byte[] payload;
 
-    public PacketModel(int num, String timestamp, String src, String dst, String proto, int len, byte[] data) {
-        this.number = num;
-        this.timestamp = timestamp;
-        this.source = src;
-        this.destination = dst;
-        this.protocol = proto;
-        this.length = len;
+    public PacketModel(int num, String timestamp, String src, String dst,
+                       String proto, int len, String info, byte[] data) {
+        this.number = new SimpleIntegerProperty(num);
+        this.timestamp = new SimpleStringProperty(timestamp);
+        this.source = new SimpleStringProperty(src);
+        this.destination = new SimpleStringProperty(dst);
+        this.protocol = new SimpleStringProperty(proto);
+        this.length = new SimpleIntegerProperty(len);
+        this.info = new SimpleStringProperty(info);
         this.payload = data;
     }
 
-    public int getNumber() { return number; }
-    public String getTimestamp() { return timestamp; }
-    public String getSource() { return source; }
-    public String getDestination() { return destination; }
-    public String getProtocol() { return protocol; }
-    public int getLength() { return length; }
-    public byte[] getPayload() { return payload; }
+    public SimpleIntegerProperty NumberProperty() { return number; }
+    public SimpleStringProperty TimestampProperty() { return timestamp; }
+    public SimpleStringProperty SourceProperty() { return source; }
+    public SimpleStringProperty DestinationProperty() { return destination; }
+    public SimpleStringProperty ProtocolProperty() { return protocol; }
+    public SimpleIntegerProperty LengthProperty() { return length; }
+    public byte[] PayloadProperty() { return payload; }
+    public SimpleStringProperty InfoProperty() { return info; }
 }

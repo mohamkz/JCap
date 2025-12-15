@@ -29,6 +29,7 @@
                     <TableColumn fx:id="colDst" text="Destination" prefWidth="150"/>
                     <TableColumn fx:id="colProto" text="Protocol"/>
                     <TableColumn fx:id="colLen" text="Length"/>
+                    <TableColumn fx:id="colInfo" text="Info" prefWidth="600"/>
                 </columns>
                 <columnResizePolicy>
                     <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>

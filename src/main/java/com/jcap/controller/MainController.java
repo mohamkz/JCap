@@ -5,6 +5,8 @@ import com.jcap.service.SnifferService;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import org.pcap4j.core.PcapNativeException;
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.core.Pcaps;
@@ -32,6 +34,7 @@ public class MainController {
     @FXML private TableColumn<PacketModel, String> colDst;
     @FXML private TableColumn<PacketModel, String> colProto;
     @FXML private TableColumn<PacketModel, Integer> colLen;
+    @FXML private TableColumn<PacketModel, String> colInfo;
 
     @FXML private TextArea hexDump;
 
@@ -46,11 +49,12 @@ public class MainController {
         colDst.setCellValueFactory(new PropertyValueFactory<>("Destination"));
         colProto.setCellValueFactory(new PropertyValueFactory<>("Protocol"));
         colLen.setCellValueFactory(new PropertyValueFactory<>("Length"));
+        colInfo.setCellValueFactory(new PropertyValueFactory<>("Info"));
 
         hexDump.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 16;");
 
         table.setRowFactory(tv -> {
-            TableRow<PacketModel> row = new TableRow<PacketModel>() {
+            TableRow<PacketModel> row = new TableRow<>() {
                 @Override
                 protected void updateItem(PacketModel item, boolean empty) {
                     super.updateItem(item, empty);
@@ -59,7 +63,6 @@ public class MainController {
             };
 
             row.selectedProperty().addListener((obs, wasSelected, isSelected) -> styleRow(row));
-
             return row;
         });
 
@@ -82,8 +85,14 @@ public class MainController {
             logger.error("Failed to load network interfaces. {}", e.getMessage());
         }
 
+        filterField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                onStart();
+            }
+        });
+
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) hexDump.setText(formatHex(newSelection.getPayload()));
+            if (newSelection != null) hexDump.setText(formatHex(newSelection.PayloadProperty()));
         });
     }
 
@@ -128,7 +137,7 @@ public class MainController {
 
     private void styleRow(TableRow<PacketModel> row) {
         if (row.isSelected()) {
-            row.setStyle("-fx-background-color: #8CA9FF; -fx-text-fill: white;");
+            row.setStyle("-fx-background-color: #0969da; -fx-text-fill: white; -color-fg-default: white;");
             return;
         }
 
@@ -137,7 +146,7 @@ public class MainController {
             return;
         }
 
-        String proto = row.getItem().getProtocol().toUpperCase();
+        String proto = row.getItem().ProtocolProperty().toString().toUpperCase();
         String style = "-fx-text-fill: black; -fx-background-color: ";
 
         if (proto.contains("TCP")) {
