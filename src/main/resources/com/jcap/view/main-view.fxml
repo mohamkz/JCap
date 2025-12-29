@@ -3,6 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
+<?import javafx.scene.text.TextFlow?>
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.jcap.controller.MainController" prefHeight="700" prefWidth="1000">
     <top>
         <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle;">
@@ -13,8 +14,10 @@
             <TextField fx:id="filterField" prefWidth="200" />
 
             <Region HBox.hgrow="ALWAYS"/>
-            <Button fx:id="startBtn" onAction="#onStart" style="-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;"/>
-            <Button fx:id="stopBtn" onAction="#onStop" disable="true" style="-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;"/>
+            <Button fx:id="startBtn" onAction="#onStart"
+                    style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"/>
+            <Button fx:id="stopBtn" onAction="#onStop" disable="true"
+                    style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"/>
         </HBox>
     </top>
 
@@ -35,11 +38,10 @@
                 </columnResizePolicy>
             </TableView>
 
-            <VBox spacing="5">
-                <padding><Insets top="5" right="10" bottom="5" left="10"/></padding>
-                <Label text="Payload Hex Dump" style="-fx-font-weight: bold; -fx-text-fill: -color-accent-fg;"/>
-                <TextArea fx:id="hexDump" editable="false" wrapText="true" style="-fx-font-family: 'Monospaced';"/>
-            </VBox>
+            <SplitPane dividerPositions="0.4">
+                <TreeView fx:id="packetTree" showRoot="false" style="-fx-font-family: 'Segoe UI', sans-serif;"/>
+                <TextArea fx:id="hexDump" editable="false" style="-fx-font-family: 'Monospaced'; -fx-font-size: 14px;"/>
+            </SplitPane>
         </SplitPane>
     </center>
 </BorderPane>
