@@ -13,11 +13,10 @@
             <TextField fx:id="filterField" prefWidth="200" />
 
             <Region HBox.hgrow="ALWAYS"/>
-            <Button fx:id="startBtn" text="Start Capture" onAction="#onStart" styleClass="success"/>
-            <Button fx:id="stopBtn" text="Stop" onAction="#onStop" disable="true" styleClass="danger"/>
+            <Button fx:id="startBtn" onAction="#onStart" style="-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;"/>
+            <Button fx:id="stopBtn" onAction="#onStop" disable="true" style="-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;"/>
         </HBox>
     </top>
-
 
     <center>
         <SplitPane orientation="VERTICAL" dividerPositions="0.7">

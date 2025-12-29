@@ -4,6 +4,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 
 public class PacketModel {
+
     private final SimpleIntegerProperty number;
     private final SimpleStringProperty timestamp;
     private final SimpleStringProperty source;
@@ -24,6 +25,15 @@ public class PacketModel {
         this.info = new SimpleStringProperty(info);
         this.payload = data;
     }
+
+    public int getNumber() { return number.get(); }
+    public String getTimestamp() { return timestamp.get(); }
+    public String getSource() { return source.get(); }
+    public String getDestination() { return destination.get(); }
+    public String getProtocol() { return protocol.get(); }
+    public int getLength() { return length.get(); }
+    public byte[] getPayload() { return payload; }
+    public String getInfo() { return info.get(); }
 
     public SimpleIntegerProperty NumberProperty() { return number; }
     public SimpleStringProperty TimestampProperty() { return timestamp; }

@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 
 import org.pcap4j.packet.namednumber.ArpOperation;
 import org.pcap4j.packet.namednumber.IcmpV4Type;
+import org.pcap4j.packet.namednumber.IcmpV6Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +27,10 @@ public class SnifferService extends Service<Void> {
     private final PcapNetworkInterface nif;
     private final Consumer<PacketModel> onPacketCaptured;
     private final Consumer<String> onError;
-    private final String filter;
     private long startNano = 0;
 
-    public SnifferService(PcapNetworkInterface nif, String filter, Consumer<PacketModel> callback, Consumer<String> onError) {
+    public SnifferService(PcapNetworkInterface nif, Consumer<PacketModel> callback, Consumer<String> onError) {
         this.nif = nif;
-        this.filter = filter;
         this.onPacketCaptured = callback;
         this.onError = onError;
     }
@@ -54,23 +53,6 @@ public class SnifferService extends Service<Void> {
                     return null;
                 }
 
-                if (filter != null && !filter.isEmpty()) {
-                    try {
-                        handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
-                        logger.info("Filter applied: {}", filter);
-                    }
-                    catch (PcapNativeException | NullPointerException | NotOpenException e) {
-                        logger.error("Invalid Filter Syntax: {}.", filter);
-
-                        Platform.runLater(() -> onError.accept("Invalid Filter Syntax: " + filter));
-
-                        if (handle != null && handle.isOpen()) {
-                            handle.close();
-                        }
-                        return null;
-                    }
-                }
-
                 PacketListener listener = getPacketListener();
 
                 try {
@@ -82,6 +64,12 @@ public class SnifferService extends Service<Void> {
                 catch (PcapNativeException | NotOpenException e) {
                     logger.error("Critical error during packet capture loop.", e);
                     Platform.runLater(() -> onError.accept("Capture Error: " + e.getMessage()));
+                }
+                finally {
+                    if (handle != null && handle.isOpen()) {
+                        handle.close();
+                        logger.info("Pcap handle closed successfully.");
+                    }
                 }
                 return null;
             }
@@ -175,13 +163,16 @@ public class SnifferService extends Service<Void> {
                 int firstLineEnd = payloadStr.indexOf("\r\n");
                 if (firstLineEnd > 0) {
                     payloadStr = payloadStr.substring(0, firstLineEnd);
-                    info.append("  [HTTP:").append(payloadStr).append("]");
+                    info.append("  [").append(payloadStr).append("]");
                 }
             }
         }
         else if (packet.contains(UdpPacket.class)) {
             UdpPacket udp = packet.get(UdpPacket.class);
-            info.append("Len=").append(udp.getHeader().getLength());
+
+            info.append(udp.getHeader().getSrcPort().valueAsInt()).append(" → ").append(udp.getHeader().getDstPort().valueAsInt());
+
+            info.append("  Len=").append(udp.getHeader().getLength());
 
             if (udp.getHeader().getSrcPort().valueAsInt() == 53 || udp.getHeader().getDstPort().valueAsInt() == 53) {
                 info.append("  (DNS Query/Response)");
@@ -214,6 +205,32 @@ public class SnifferService extends Service<Void> {
                 info.append(icmp.getHeader().getType().name());
             }
         }
+        else if (packet.contains(IcmpV6CommonPacket.class)) {
+            IcmpV6CommonPacket icmp6 = packet.get(IcmpV6CommonPacket.class);
+            IcmpV6Type type = icmp6.getHeader().getType();
+
+            if (type.equals(IcmpV6Type.ECHO_REQUEST)) {
+                info.append("Echo (Ping6) Request");
+            }
+            else if (type.equals(IcmpV6Type.ECHO_REPLY)) {
+                info.append("Echo (Ping6) Reply");
+            }
+            else if (type.equals(IcmpV6Type.NEIGHBOR_SOLICITATION)) {
+                info.append("Neighbor Solicitation");
+            }
+            else if (type.equals(IcmpV6Type.NEIGHBOR_ADVERTISEMENT)) {
+                info.append("Neighbor Advertisement");
+            }
+            else if (type.equals(IcmpV6Type.ROUTER_SOLICITATION)) {
+                info.append("Router Solicitation");
+            }
+            else if (type.equals(IcmpV6Type.ROUTER_ADVERTISEMENT)) {
+                info.append("Router Advertisement");
+            }
+            else {
+                info.append(type.name());
+            }
+        }
 
         return info.toString();
     }
@@ -223,8 +240,7 @@ public class SnifferService extends Service<Void> {
         if (handle != null && handle.isOpen()) {
             try {
                 handle.breakLoop();
-                handle.close();
-                logger.info("Pcap handle closed successfully.");
+                logger.info("Requested loop break...");
             } catch (NotOpenException e) {
                 logger.error("Failed to close Pcap handle. {}", e.getMessage());
             }

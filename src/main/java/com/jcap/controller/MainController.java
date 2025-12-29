@@ -2,11 +2,16 @@ package com.jcap.controller;
 
 import com.jcap.model.PacketModel;
 import com.jcap.service.SnifferService;
+import javafx.beans.Observable;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import org.pcap4j.core.PcapNativeException;
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.core.Pcaps;
@@ -41,6 +46,9 @@ public class MainController {
     private List<PcapNetworkInterface> interfaces;
     private SnifferService service;
 
+    private final ObservableList<PacketModel> masterList = FXCollections.observableArrayList();
+    private FilteredList<PacketModel> filteredList;
+
     @FXML
     public void initialize() {
         colNo.setCellValueFactory(new PropertyValueFactory<>("Number"));
@@ -51,7 +59,19 @@ public class MainController {
         colLen.setCellValueFactory(new PropertyValueFactory<>("Length"));
         colInfo.setCellValueFactory(new PropertyValueFactory<>("Info"));
 
+        filteredList = new FilteredList<>(masterList, p -> true);
+
+        table.setItems(filteredList);
+
+        Rectangle startSquare = new Rectangle(20, 20, Color.web("#2ea043"));
+        startBtn.setGraphic(startSquare);
+
+        Rectangle stopSquare = new Rectangle(20, 20, Color.web("#d1242f"));
+        stopBtn.setGraphic(stopSquare);
+
         hexDump.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 16;");
+
+        table.setPlaceholder(new Label(""));
 
         table.setRowFactory(tv -> {
             TableRow<PacketModel> row = new TableRow<>() {
@@ -64,6 +84,21 @@ public class MainController {
 
             row.selectedProperty().addListener((obs, wasSelected, isSelected) -> styleRow(row));
             return row;
+        });
+
+        filterField.textProperty().addListener((observable, oldVal, newVal) -> {
+            filteredList.setPredicate(packet -> {
+                if (newVal == null || newVal.isEmpty()) {
+                    return true;
+                }
+
+                String lower = newVal.toLowerCase();
+
+                return safeContains(packet.getSource(), lower) ||
+                        safeContains(packet.getDestination(), lower) ||
+                        safeContains(packet.getProtocol(), lower) ||
+                        safeContains(packet.getInfo(), lower);
+            });
         });
 
         try {
@@ -85,12 +120,6 @@ public class MainController {
             logger.error("Failed to load network interfaces. {}", e.getMessage());
         }
 
-        filterField.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                onStart();
-            }
-        });
-
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) hexDump.setText(formatHex(newSelection.PayloadProperty()));
         });
@@ -101,13 +130,12 @@ public class MainController {
         int index = deviceCombo.getSelectionModel().getSelectedIndex();
         if (index < 0) return;
 
-        table.getItems().clear();
-        String filterText = filterField.getText().trim();
+        masterList.clear();
+        hexDump.clear();
 
         service = new SnifferService(
                 interfaces.get(index),
-                filterText,
-                packet -> table.getItems().add(packet),
+                masterList::add,
                 errorMessage -> {
                     showAlert(errorMessage);
                     onStop();
@@ -117,7 +145,6 @@ public class MainController {
         service.start();
 
         deviceCombo.setDisable(true);
-        filterField.setDisable(true);
 
         startBtn.setDisable(true);
         stopBtn.setDisable(false);
@@ -126,10 +153,7 @@ public class MainController {
     @FXML void onStop() {
         if (service != null) service.cancel();
 
-        hexDump.clear();
-
         deviceCombo.setDisable(false);
-        filterField.setDisable(false);
 
         startBtn.setDisable(false);
         stopBtn.setDisable(true);
@@ -146,7 +170,7 @@ public class MainController {
             return;
         }
 
-        String proto = row.getItem().ProtocolProperty().toString().toUpperCase();
+        String proto = row.getItem().ProtocolProperty().get().toUpperCase();
         String style = "-fx-text-fill: black; -fx-background-color: ";
 
         if (proto.contains("TCP")) {
@@ -211,5 +235,9 @@ public class MainController {
             sb.append("\n");
         }
         return sb.toString();
+    }
+
+    private boolean safeContains(String text, String filter) {
+        return text != null && text.toLowerCase().contains(filter);
     }
 }
