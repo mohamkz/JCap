@@ -149,7 +149,6 @@ public class SnifferService extends Service<Void> {
             if (tcp.getHeader().getPsh()) flags.add("PSH");
             if (tcp.getHeader().getUrg()) flags.add("URG");
 
-
             info.append(tcp.getHeader().getSrcPort().valueAsInt()).append(" → ").append(tcp.getHeader().getDstPort().valueAsInt());
 
             info.append("  [").append(String.join(", ", flags)).append("]");

@@ -32,15 +32,14 @@ public class PacketModel {
     public String getDestination() { return destination.get(); }
     public String getProtocol() { return protocol.get(); }
     public int getLength() { return length.get(); }
-    public byte[] getPayload() { return payload; }
+    public byte[] getPayload() { return payload.clone(); }
     public String getInfo() { return info.get(); }
 
-    public SimpleIntegerProperty NumberProperty() { return number; }
-    public SimpleStringProperty TimestampProperty() { return timestamp; }
-    public SimpleStringProperty SourceProperty() { return source; }
-    public SimpleStringProperty DestinationProperty() { return destination; }
-    public SimpleStringProperty ProtocolProperty() { return protocol; }
-    public SimpleIntegerProperty LengthProperty() { return length; }
-    public byte[] PayloadProperty() { return payload; }
-    public SimpleStringProperty InfoProperty() { return info; }
+    public SimpleIntegerProperty numberProperty() { return number; }
+    public SimpleStringProperty timestampProperty() { return timestamp; }
+    public SimpleStringProperty sourceProperty() { return source; }
+    public SimpleStringProperty destinationProperty() { return destination; }
+    public SimpleStringProperty protocolProperty() { return protocol; }
+    public SimpleIntegerProperty lengthProperty() { return length; }
+    public SimpleStringProperty infoProperty() { return info; }
 }

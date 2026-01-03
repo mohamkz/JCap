@@ -6,19 +6,32 @@
 <?import javafx.scene.text.TextFlow?>
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.jcap.controller.MainController" prefHeight="700" prefWidth="1000">
     <top>
-        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle;">
-            <Label text="Interface:" style="-fx-font-weight: bold;"/>
-            <ComboBox fx:id="deviceCombo" prefWidth="250"/>
+        <VBox>
+            <MenuBar style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-width: 0 0 1 0;">
+                <Menu text="File">
+                    <MenuItem text="Save" onAction="#onSaveCapture"/>
+                    <MenuItem text="Open" onAction="#onLoadCapture"/>
+                    <MenuItem text="Delete" onAction="#onDeleteCapture"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem text="Quit" onAction="#onExit"/>
+                </Menu>
+                <Menu text="Help">
+                    <MenuItem text="About JCap" onAction="#onShowAbout"/>
+                </Menu>
+            </MenuBar>
 
-            <Label text="Filter:" style="-fx-font-weight: bold;"/>
-            <TextField fx:id="filterField" prefWidth="200" />
+            <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle;">
+                <Label text="Interface:" style="-fx-font-weight: bold;"/>
+                <ComboBox fx:id="deviceCombo" prefWidth="250"/>
 
-            <Region HBox.hgrow="ALWAYS"/>
-            <Button fx:id="startBtn" onAction="#onStart"
-                    style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"/>
-            <Button fx:id="stopBtn" onAction="#onStop" disable="true"
-                    style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"/>
-        </HBox>
+                <Label text="Filter:" style="-fx-font-weight: bold;"/>
+                <TextField fx:id="filterField" prefWidth="200" promptText="Search..." />
+
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="startBtn" onAction="#onStart" style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3; -fx-cursor: hand;"/>
+                <Button fx:id="stopBtn" onAction="#onStop" disable="true" style="-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3; -fx-cursor: hand;"/>
+            </HBox>
+        </VBox>
     </top>
 
     <center>

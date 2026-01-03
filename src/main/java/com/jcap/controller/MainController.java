@@ -1,10 +1,13 @@
 package com.jcap.controller;
 
 import com.jcap.model.PacketModel;
+import com.jcap.service.DatabaseService;
 import com.jcap.service.SnifferService;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -15,6 +18,7 @@ import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.core.Pcaps;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.pcap4j.packet.*;
 import org.slf4j.Logger;
@@ -27,11 +31,9 @@ public class MainController {
     @FXML private ComboBox<String> deviceCombo;
     @FXML private Button startBtn;
     @FXML private Button stopBtn;
-
     @FXML private TextField filterField;
 
     @FXML private TableView<PacketModel> table;
-
     @FXML private TableColumn<PacketModel, Integer> colNo;
     @FXML private TableColumn<PacketModel, Double> colTime;
     @FXML private TableColumn<PacketModel, String> colSrc;
@@ -45,12 +47,34 @@ public class MainController {
 
     private List<PcapNetworkInterface> interfaces;
     private SnifferService service;
-
     private final ObservableList<PacketModel> masterList = FXCollections.observableArrayList();
     private FilteredList<PacketModel> filteredList;
 
     @FXML
     public void initialize() {
+        DatabaseService.initialize();
+
+        setupTableColumns();
+
+        setupUIStyling();
+
+        setupSearchFilter();
+
+        table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                buildPacketTree(newSelection.getPayload());
+                hexDump.setText(formatHex(newSelection.getPayload()));
+            }
+            else {
+                hexDump.clear();
+                packetTree.setRoot(null);
+            }
+        });
+
+        loadNetworkInterfaces();
+    }
+
+    private void setupTableColumns() {
         colNo.setCellValueFactory(new PropertyValueFactory<>("Number"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("Timestamp"));
         colSrc.setCellValueFactory(new PropertyValueFactory<>("Source"));
@@ -60,27 +84,7 @@ public class MainController {
         colInfo.setCellValueFactory(new PropertyValueFactory<>("Info"));
 
         filteredList = new FilteredList<>(masterList, p -> true);
-
         table.setItems(filteredList);
-
-        Rectangle startSquare = new Rectangle(18, 18, Color.web("#2ea043"));
-        startSquare.setArcWidth(4);
-        startSquare.setArcHeight(4);
-        startBtn.setGraphic(startSquare);
-
-        Rectangle stopSquare = new Rectangle(18, 18, Color.web("#d1242f"));
-        stopSquare.setArcWidth(4);
-        stopSquare.setArcHeight(4);
-        stopBtn.setGraphic(stopSquare);
-
-        startBtn.setOnMouseEntered(e -> startBtn.setStyle("-fx-background-color: #f6f8fa; -fx-border-color: #b0b8c0; -fx-border-radius: 4; -fx-padding: 3;"));
-        startBtn.setOnMouseExited(e -> startBtn.setStyle("-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"));
-
-        stopBtn.setOnMouseEntered(e -> stopBtn.setStyle("-fx-background-color: #f6f8fa; -fx-border-color: #b0b8c0; -fx-border-radius: 4; -fx-padding: 3;"));
-        stopBtn.setOnMouseExited(e -> stopBtn.setStyle("-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3;"));
-
-        hexDump.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 16;");
-
         table.setPlaceholder(new Label(""));
 
         table.setRowFactory(tv -> {
@@ -95,22 +99,35 @@ public class MainController {
             row.selectedProperty().addListener((obs, wasSelected, isSelected) -> styleRow(row));
             return row;
         });
+    }
 
-        filterField.textProperty().addListener((observable, oldVal, newVal) -> {
-            filteredList.setPredicate(packet -> {
-                if (newVal == null || newVal.isEmpty()) {
-                    return true;
-                }
+    private void setupUIStyling() {
+        Rectangle startSquare = new Rectangle(18, 18, Color.web("#2ea043"));
+        startSquare.setArcWidth(4);
+        startSquare.setArcHeight(4);
+        startBtn.setGraphic(startSquare);
+        startBtn.setOnMouseEntered(e -> startBtn.setStyle(getButtonStyle(true)));
+        startBtn.setOnMouseExited(e -> startBtn.setStyle(getButtonStyle(false)));
 
-                String lower = newVal.toLowerCase();
 
-                return safeContains(packet.getSource(), lower) ||
-                        safeContains(packet.getDestination(), lower) ||
-                        safeContains(packet.getProtocol(), lower) ||
-                        safeContains(packet.getInfo(), lower);
-            });
-        });
+        Rectangle stopSquare = new Rectangle(18, 18, Color.web("#d1242f"));
+        stopSquare.setArcWidth(4);
+        stopSquare.setArcHeight(4);
+        stopBtn.setGraphic(stopSquare);
+        stopBtn.setOnMouseEntered(e -> stopBtn.setStyle(getButtonStyle(true)));
+        stopBtn.setOnMouseExited(e -> stopBtn.setStyle(getButtonStyle(false)));
 
+        hexDump.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 16;");
+    }
+
+    private String getButtonStyle(boolean hover) {
+        if (hover) {
+            return "-fx-background-color: #f6f8fa; -fx-border-color: #b0b8c0; -fx-border-radius: 4; -fx-padding: 3; -fx-cursor: hand;";
+        }
+        return "-fx-background-color: white; -fx-border-color: #d0d7de; -fx-border-radius: 4; -fx-padding: 3; -fx-cursor: hand;";
+    }
+
+    private void loadNetworkInterfaces() {
         try {
             logger.info("Scanning for network interfaces...");
             interfaces = Pcaps.findAllDevs();
@@ -129,20 +146,6 @@ public class MainController {
         catch (PcapNativeException e) {
             logger.error("Failed to load network interfaces. {}", e.getMessage());
         }
-
-        table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                byte[] data = newSelection.getPayload();
-
-                buildPacketTree(data);
-
-                hexDump.setText(formatHex(newSelection.PayloadProperty()));
-            }
-            else {
-                hexDump.clear();
-                packetTree.setRoot(null);
-            }
-        });
     }
 
     @FXML
@@ -177,6 +180,118 @@ public class MainController {
 
         startBtn.setDisable(false);
         stopBtn.setDisable(true);
+    }
+
+    @FXML
+    private void onSaveCapture() {
+        if (masterList.isEmpty()) {
+            showAlert("Nothing to save!");
+            return;
+        }
+
+        onStop();
+
+        TextInputDialog dialog = new TextInputDialog("Capture_" + System.currentTimeMillis());
+        dialog.setTitle("Save Capture");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Enter a name for this capture:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(name -> {
+            if (name.trim().isEmpty()) {
+                showAlert("Name cannot be empty.");
+                return;
+            }
+
+            Task<Boolean> saveTask = DatabaseService.saveCapture(name, masterList);
+
+            saveTask.setOnSucceeded(e -> {
+                table.setDisable(false);
+            });
+
+            saveTask.setOnFailed(e -> {
+                Throwable error = saveTask.getException();
+                showAlert("Database Error: " + error.getMessage());
+                table.setDisable(false);
+            });
+
+            table.setDisable(true);
+            new Thread(saveTask).start();
+        });
+    }
+
+    @FXML
+    private void onLoadCapture() {
+        List<String> sessions = DatabaseService.getCaptureNames();
+
+        if (sessions.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Load Capture");
+            alert.setHeaderText(null);
+            alert.setContentText("No saved captures found.");
+            alert.showAndWait();
+            return;
+        }
+
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(sessions.getFirst(), sessions);
+        dialog.setTitle("Open Capture");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Capture Name:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(name -> {
+            onStop();
+
+            masterList.clear();
+            packetTree.setRoot(null);
+            hexDump.clear();
+
+            List<PacketModel> loadedPackets = DatabaseService.loadCapture(name);
+            masterList.addAll(loadedPackets);
+
+            table.refresh();
+        });
+    }
+
+    @FXML
+    private void onDeleteCapture() {
+        List<String> sessions = DatabaseService.getCaptureNames();
+        if (sessions.isEmpty()) {
+            showAlert("No saved captures to delete.");
+            return;
+        }
+
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(sessions.getFirst(), sessions);
+        dialog.setTitle("Delete Capture");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Select capture to delete:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(name -> {
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Delete");
+            confirm.setHeaderText(null);
+            confirm.setContentText("Are you sure you want to delete '" + name + "'?\nThis cannot be undone.");
+
+            Optional<ButtonType> answer = confirm.showAndWait();
+            if (answer.isPresent() && answer.get() == ButtonType.OK) {
+                DatabaseService.deleteCapture(name);
+            }
+        });
+    }
+
+    @FXML void onExit() {
+        Platform.exit();
+        System.exit(0);
+    }
+
+    @FXML void onShowAbout() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("About JCap");
+        alert.setHeaderText("JCap Network Sniffer");
+        alert.setContentText("A JavaFX based packet analyzer using Pcap4j.\n\nVersion: 1.0");
+        alert.showAndWait();
     }
 
     private void buildPacketTree(byte[] data) {
@@ -221,6 +336,20 @@ public class MainController {
                         layerItem.getChildren().add(new TreeItem<>("Destination Port:  " + udp.getHeader().getDstPort().valueAsInt()));
                         layerItem.getChildren().add(new TreeItem<>("Length:  " + udp.getHeader().getLength()));
                     }
+                    case ArpPacket arp -> {
+                        layerItem = new TreeItem<>("Address Resolution Protocol");
+                        layerItem.getChildren().add(new TreeItem<>("Operation Code:  " + arp.getHeader().getOperation()));
+                        layerItem.getChildren().add(new TreeItem<>("Sender MAC:  " + arp.getHeader().getSrcHardwareAddr()));
+                        layerItem.getChildren().add(new TreeItem<>("Sender IP:  " + arp.getHeader().getSrcProtocolAddr().getHostAddress()));
+                        layerItem.getChildren().add(new TreeItem<>("Target MAC:  " + arp.getHeader().getDstHardwareAddr()));
+                        layerItem.getChildren().add(new TreeItem<>("Target IP:  " + arp.getHeader().getDstProtocolAddr().getHostAddress()));
+                    }
+                    case IcmpV4CommonPacket icmp -> {
+                        layerItem = new TreeItem<>("Internet Control Message Protocol");
+                        layerItem.getChildren().add(new TreeItem<>("Type:  " + icmp.getHeader().getType()));
+                        layerItem.getChildren().add(new TreeItem<>("Code:  " + icmp.getHeader().getCode()));
+                        layerItem.getChildren().add(new TreeItem<>("Checksum:  " + icmp.getHeader().getChecksum()));
+                    }
                     default -> {
                     }
                 }
@@ -247,27 +376,33 @@ public class MainController {
             return;
         }
 
-        String proto = row.getItem().ProtocolProperty().get().toUpperCase();
-        String style = "-fx-text-fill: black; -fx-background-color: ";
+        String proto = row.getItem().protocolProperty().get().toUpperCase();
 
-        if (proto.contains("TCP")) {
-            row.setStyle(style + "rgba(50, 205, 50, 0.25);");
-        }
-        else if (proto.contains("UDP")) {
-            row.setStyle(style + "rgba(30, 144, 255, 0.25);");
-        }
-        else if (proto.contains("ARP")) {
-            row.setStyle(style + "rgba(255, 165, 0, 0.25);");
-        }
-        else if (proto.contains("ICMP")) {
-            row.setStyle(style + "rgba(255, 105, 180, 0.25)");
-        }
-        else if (proto.contains("IGMP")) {
-            row.setStyle(style + "rgba(200, 100, 200, 0.25);");
-        }
-        else {
-            row.setStyle(style + "rgba(128, 128, 128, 0.25);");
-        }
+        String color = switch (proto) {
+            case "TCP" -> "rgba(50, 205, 50, 0.25)";
+            case "UDP" -> "rgba(30, 144, 255, 0.25)";
+            case "ARP" -> "rgba(255, 165, 0, 0.25)";
+            case "ICMPV4", "ICMPV6" -> "rgba(255, 105, 180, 0.25)";
+            case "IGMP" -> "rgba(200, 100, 200, 0.25)";
+            default -> "rgba(128, 128, 128, 0.25)";
+        };
+
+        row.setStyle("-fx-text-fill: black; -fx-background-color: " + color + ";");
+    }
+
+    private void setupSearchFilter() {
+        filterField.textProperty().addListener((observable, oldVal, newVal) -> filteredList.setPredicate(packet -> {
+            if (newVal == null || newVal.isEmpty()) {
+                return true;
+            }
+
+            String lower = newVal.toLowerCase();
+
+            return safeContains(packet.getSource(), lower) ||
+                    safeContains(packet.getDestination(), lower) ||
+                    safeContains(packet.getProtocol(), lower) ||
+                    safeContains(packet.getInfo(), lower);
+        }));
     }
 
     private void showAlert(String message) {
