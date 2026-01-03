@@ -1,11 +1,23 @@
 # JCap
 
-A lightweight, real-time network packet sniffer built with **Java**, **JavaFX**, and **Pcap4J**.
+A lightweight network packet sniffer and analyzer.
+
+
 
 ## Features
-* **Real-time Capture:** Sniff traffic on any network interface.
-* **Protocol Analysis:** Color-coded support for TCP, UDP, ICMP, and ARP.
-* **Deep Inspection:** View raw Hex and ASCII payload dumps.
+* **Real-time Capture:** Sniff traffic on any network interface with background threading for smooth performance.
+* **Session Management:** **Save** captured sessions to a local database and **Load** them later for analysis.
+* **Protocol Analysis:** Color-coded support for **TCP, UDP, ICMP, ARP**, and more.
+* **Live Filtering:** Filter packets instantly by Source, Destination, Protocol, or Info text.
+* **Deep Inspection:**
+    * **Packet Tree:** View hierarchical layers (Ethernet → IP → Transport).
+    * **Hex Dump:** Inspect raw packet payload in Hex and ASCII.
+
+## Tech Stack
+* **UI:** JavaFX (Modular Architecture)
+* **Core:** Java 21
+* **Capture Engine:** Pcap4j (Libpcap wrapper)
+* **Storage:** SQLite (JDBC Batch Processing)
 
 ## Requirements
 1.  **Java 17+** & **Maven**.
