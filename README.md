@@ -2,7 +2,7 @@
 
 A lightweight network packet sniffer and analyzer.
 
-
+![JCap Dashboard Screenshot](screenshots/screenshot.png)
 
 ## Features
 * **Real-time Capture:** Sniff traffic on any network interface with background threading for smooth performance.
